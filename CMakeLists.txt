@@ -18,6 +18,9 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/CMakeListsUser.txt)
 include(CMakeListsUser.txt)
 endif()
 
+include_directories(${includes} .pio/libdeps/uno_wifi_rev2/Arduino_LSM6DS3/src)
+file(GLOB_RECURSE SOURCES ${sources} ".pio/libdeps/uno_wifi_rev2/Arduino_LSM6DS3/src/*.cpp" )
+
 add_custom_target(
     Production ALL
     COMMAND platformio -c clion run "$<$<NOT:$<CONFIG:All>>:-e${CMAKE_BUILD_TYPE}>"
