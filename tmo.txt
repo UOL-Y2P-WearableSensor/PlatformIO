@@ -1,0 +1,14 @@
+
+output_format1(), 9600 baud rate
+22:43:38.078 > 1
+22:43:41.821 > 100 rounds over
+
+
+output_format2(), 9600 baud rate
+22:46:12.707 > 1
+22:46:16.453 > 100 rounds over
+
+
+output_format2(), 38400 baud rate
+22:49:11.722 > 1
+22:49:12.664 > 100
