@@ -1,78 +1,69 @@
 /*
- This example connects to an unencrypted WiFi network.
- Then it prints the MAC address of the WiFi module,
- the IP address obtained, and other network details.
+  Web client
+
+ This sketch connects to a website (http://www.google.com)
+ using the WiFi module.
+
+ This example is written for a network using WPA encryption. For
+ WEP or WPA, change the WiFi.begin() call accordingly.
+
+ This example is written for a network using WPA encryption. For
+ WEP or WPA, change the WiFi.begin() call accordingly.
+
+ Circuit:
+ * Board with NINA module (Arduino MKR WiFi 1010, MKR VIDOR 4000 and UNO WiFi Rev.2)
 
  created 13 July 2010
  by dlf (Metodo2 srl)
  modified 31 May 2012
  by Tom Igoe
  */
+
+
 #include <SPI.h>
 #include <WiFiNINA.h>
 
-#define SECRET_SSID "CastleBlack"
-#define SECRET_PASS "123123123"
-
+# define SECRET_SSID "CastleBlack"
+# define SECRET_PASS "123123123"
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = SECRET_SSID;        // your network SSID (name)
 char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
-int status = WL_IDLE_STATUS;     // the WiFi radio's status
+int keyIndex = 0;            // your network key index number (needed only for WEP)
 
-void printMacAddress(byte mac[]) {
-    for (int i = 5; i >= 0; i--) {
-        if (mac[i] < 16) {
-            Serial.print("0");
-        }
-        Serial.print(mac[i], HEX);
-        if (i > 0) {
-            Serial.print(":");
-        }
-    }
-    Serial.println();
-}
+int status = WL_IDLE_STATUS;
+// if you don't want to use DNS (and reduce your sketch size)
+// use the numeric IP instead of the name for the server:
+IPAddress server(192,168,1,141);  // numeric IP for Google (no DNS)
+//char server[] = "www.google.com";    // name address for Google (using DNS)
+#define PORT 3490
+// Initialize the Ethernet client library
+// with the IP address and port of the server
+// that you want to connect to (port 80 is default for HTTP):
+WiFiClient client;
 
-void printWifiData() {
-    // print your board's IP address:
-    IPAddress ip = WiFi.localIP();
-    Serial.print("IP Address: ");
-    Serial.println(ip);
-    Serial.println(ip);
 
-    // print your MAC address:
-    byte mac[6];
-    WiFi.macAddress(mac);
-    Serial.print("MAC address: ");
-    printMacAddress(mac);
-}
 
-void printCurrentNet() {
+
+void printWifiStatus() {
     // print the SSID of the network you're attached to:
     Serial.print("SSID: ");
     Serial.println(WiFi.SSID());
 
-    // print the MAC address of the router you're attached to:
-    byte bssid[6];
-    WiFi.BSSID(bssid);
-    Serial.print("BSSID: ");
-    printMacAddress(bssid);
+    // print your board's IP address:
+    IPAddress ip = WiFi.localIP();
+    Serial.print("IP Address: ");
+    Serial.println(ip);
 
     // print the received signal strength:
     long rssi = WiFi.RSSI();
     Serial.print("signal strength (RSSI):");
-    Serial.println(rssi);
-
-    // print the encryption type:
-    byte encryption = WiFi.encryptionType();
-    Serial.print("Encryption Type:");
-    Serial.println(encryption, HEX);
-    Serial.println();
+    Serial.print(rssi);
+    Serial.println(" dBm");
 }
-
 
 void setup() {
     //Initialize serial and wait for port to open:
-    Serial.begin(9600);
+    Serial.begin(76800);
     while (!Serial) {
         ; // wait for serial port to connect. Needed for native USB port only
     }
@@ -91,24 +82,42 @@ void setup() {
 
     // attempt to connect to WiFi network:
     while (status != WL_CONNECTED) {
-        Serial.print("Attempting to connect to WPA SSID: ");
+        Serial.print("Attempting to connect to SSID: ");
         Serial.println(ssid);
-        // Connect to WPA/WPA2 network:
+        // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
         status = WiFi.begin(ssid, pass);
 
         // wait 10 seconds for connection:
         delay(10000);
     }
+    Serial.println("Connected to WiFi");
+    printWifiStatus();
 
-    // you're connected now, so print out the data:
-    Serial.print("You're connected to the network");
-    printCurrentNet();
-    printWifiData();
-
+    Serial.println("\nStarting connection to server...");
+    // if you get a connection, report back via serial:
+    if (client.connect(server, PORT)) {
+        Serial.println("connected to server");
+        // Make a HTTP request:
+        client.print("GET /IMU_data.json HTTP/1.1\r\nHello server, this is Arduino speaking!\r\n");
+        client.print("\r\n");
+    }
 }
 
 void loop() {
-    // check the network connection once every 10 seconds:
-    delay(10000);
-    printCurrentNet();
+    // if there are incoming bytes available
+    // from the server, read them and print them:
+    while (client.available()) {
+        char c = client.read();
+        Serial.write(c);
+    }
+
+    // if the server's disconnected, stop the client:
+    if (!client.connected()) {
+        Serial.println();
+        Serial.println("disconnecting from server.");
+        client.stop();
+
+        // do nothing forevermore:
+        while (true);
+    }
 }
