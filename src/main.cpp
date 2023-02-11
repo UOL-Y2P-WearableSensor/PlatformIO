@@ -41,7 +41,7 @@ IPAddress server(192,168,1,141);  // numeric IP for Google (no DNS)
 // with the IP address and port of the server
 // that you want to connect to (port 80 is default for HTTP):
 WiFiClient client;
-char buffer[200];
+
 
 int time_idx=0;
 
@@ -69,8 +69,7 @@ void setup() {
         ; // wait for serial port to connect. Needed for native USB port only
     }
 
-    SENSOR->get_single_data(0, buffer);
-
+    SENSOR;
 
     // check for the WiFi module:
     if (WiFi.status() == WL_NO_MODULE) {
@@ -96,33 +95,30 @@ void setup() {
     Serial.println("\nStarting connection to server...");
 }
 
-
-
+char header[]="PUT /IMU_data.json HTTP/1.1\r\n";
+char buffer[200];
+char tmp[20];
 
 void loop() {
-//    for (int i = 0; i < 8; ++i) {
-//        String frame = SENSOR->get_single_data(i);
-//        delay(100);
-//    }
     memset(buffer, 0, sizeof buffer/sizeof (char ));
-    strcat(buffer, "PUT /IMU_data.json HTTP/1.1\r\n");
-    sprintf(buffer, "time_idx = %d\n", time_idx++);
-    SENSOR->get_single_data(0, buffer);
-    strcat(buffer, "\n");
-    SENSOR->get_single_data(2, buffer);
-    strcat(buffer, "\n");
-    SENSOR->get_single_data(4, buffer);
-    strcat(buffer, "\n");
-    SENSOR->get_single_data(6, buffer);
+    strcat(buffer, header);
+
+    memset(tmp, 0, sizeof tmp / sizeof(char));
+    sprintf(tmp, "time_idx = %d\n", time_idx++);
+    strcat(buffer, tmp);
+
+    SENSOR->get_all_data(buffer);
+
+
+
     if (client.connect(server, PORT)) {
-        Serial.println("connected to server");
-        Serial.print("time_idx = ");
-        Serial.println(time_idx);
+        Serial.println(buffer);
+
         client.println(buffer);
         client.println("\r\n");
     }
 
-    delay(2000);
+    delay(200);
 
 
 }

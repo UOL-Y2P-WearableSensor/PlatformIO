@@ -33,39 +33,30 @@ namespace DigitalTwin {
 
     }
 
-    void Sensor::get_all_data() {
-        String output;
+    void Sensor::get_all_data(char* buffer) {
         for (int i = 0; i < 8; i++) {
-//            output+=get_single_data(i);
+            if (this->port_schedule[i]) {
+                get_single_data(i, buffer);
+                strcat(buffer, "\n");
+            }
         }
-
-
     }
 
-    void Sensor::get_single_data(int idx, char * buffer) {
-        char tmp[50];
-        memset(tmp, 0, sizeof tmp/sizeof (char ));
+    void Sensor::get_single_data(int idx, char *buffer) {
+        char tmp[100];
+        int16_t data[6];
+        memset(data, 0, sizeof data / sizeof(int16_t));
+        memset(tmp, 0, sizeof tmp / sizeof(char));
         for (int i = 0; i < 8; i++) {
             if (this->port_schedule[i] && idx == i) {
 
                 I2CMulti.selectPort(idx);
-                sprintf(tmp, "port_id_%d-%d",
-                        idx
-                        ,icm20600.getAccelerationX()
-                        );
-                Serial.print(" x = ");
-                Serial.println( icm20600.getAccelerationX() );
-
+                icm20600.getGyroscope(&data[0], &data[1], &data[2]);
+                icm20600.getAcceleration(&data[3], &data[4], &data[5]);
+                sprintf(tmp, "port_id_%d[%d][%d][%d][%d][%d][%d]",
+                        idx, data[0], data[1], data[2], data[3], data[4], data[5]
+                );
                 strcat(buffer, tmp);
-//                sprintf(buffer, "port_id_%d-%d-%d-%d-%d-%d-%d",
-//                        idx
-//                        icm20600.getGyroscopeX();
-//                        ,icm20600.getGyroscopeY()
-//                        ,icm20600.getGyroscopeZ()
-//                        ,icm20600.getAccelerationX()
-//                        ,icm20600.getAccelerationY()
-//                        ,icm20600.getAccelerationZ()
-//                        );
             }
         }
     }

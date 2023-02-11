@@ -27,8 +27,8 @@ namespace DigitalTwin {
     public:
         Sensor();
         static Sensor *get_share_sensor_instance();
-        void get_all_data();
-        void get_single_data(int idx, char * buffer);
+        void get_all_data(char*);
+        void get_single_data(int, char*);
 
     private:
         static int port_schedule[8];
