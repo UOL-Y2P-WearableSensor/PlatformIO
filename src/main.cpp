@@ -22,6 +22,7 @@
 
 #include <SPI.h>
 #include <WiFiNINA.h>
+#include "Sensor.h"
 
 # define SECRET_SSID "CastleBlack"
 # define SECRET_PASS "123123123"
@@ -40,9 +41,9 @@ IPAddress server(192,168,1,141);  // numeric IP for Google (no DNS)
 // with the IP address and port of the server
 // that you want to connect to (port 80 is default for HTTP):
 WiFiClient client;
+char buffer[200];
 
-
-
+int time_idx=0;
 
 void printWifiStatus() {
     // print the SSID of the network you're attached to:
@@ -63,10 +64,13 @@ void printWifiStatus() {
 
 void setup() {
     //Initialize serial and wait for port to open:
-    Serial.begin(76800);
+    Serial.begin(9600);
     while (!Serial) {
         ; // wait for serial port to connect. Needed for native USB port only
     }
+
+    SENSOR->get_single_data(0, buffer);
+
 
     // check for the WiFi module:
     if (WiFi.status() == WL_NO_MODULE) {
@@ -75,10 +79,6 @@ void setup() {
         while (true);
     }
 
-    String fv = WiFi.firmwareVersion();
-    if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
-        Serial.println("Please upgrade the firmware");
-    }
 
     // attempt to connect to WiFi network:
     while (status != WL_CONNECTED) {
@@ -87,37 +87,42 @@ void setup() {
         // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
         status = WiFi.begin(ssid, pass);
 
-        // wait 10 seconds for connection:
-        delay(10000);
+        // wait 2 seconds for connection:
+        delay(2000);
     }
     Serial.println("Connected to WiFi");
     printWifiStatus();
 
     Serial.println("\nStarting connection to server...");
-    // if you get a connection, report back via serial:
-    if (client.connect(server, PORT)) {
-        Serial.println("connected to server");
-        // Make a HTTP request:
-        client.print("GET /IMU_data.json HTTP/1.1\r\nHello server, this is Arduino speaking!\r\n");
-        client.print("\r\n");
-    }
 }
 
+
+
+
 void loop() {
-    // if there are incoming bytes available
-    // from the server, read them and print them:
-    while (client.available()) {
-        char c = client.read();
-        Serial.write(c);
+//    for (int i = 0; i < 8; ++i) {
+//        String frame = SENSOR->get_single_data(i);
+//        delay(100);
+//    }
+    memset(buffer, 0, sizeof buffer/sizeof (char ));
+    strcat(buffer, "PUT /IMU_data.json HTTP/1.1\r\n");
+    sprintf(buffer, "time_idx = %d\n", time_idx++);
+    SENSOR->get_single_data(0, buffer);
+    strcat(buffer, "\n");
+    SENSOR->get_single_data(2, buffer);
+    strcat(buffer, "\n");
+    SENSOR->get_single_data(4, buffer);
+    strcat(buffer, "\n");
+    SENSOR->get_single_data(6, buffer);
+    if (client.connect(server, PORT)) {
+        Serial.println("connected to server");
+        Serial.print("time_idx = ");
+        Serial.println(time_idx);
+        client.println(buffer);
+        client.println("\r\n");
     }
 
-    // if the server's disconnected, stop the client:
-    if (!client.connected()) {
-        Serial.println();
-        Serial.println("disconnecting from server.");
-        client.stop();
+    delay(2000);
 
-        // do nothing forevermore:
-        while (true);
-    }
+
 }
