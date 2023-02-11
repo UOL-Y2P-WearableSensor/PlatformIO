@@ -9,16 +9,7 @@
 #include <Wire.h>
 #include "../lib/DFRobot_I2C_Multiplexer-main/DFRobot_I2C_Multiplexer.h"
 
-#define port0   ENABLE
-#define port1   DISABLE
-#define port2   ENABLE
-#define port3   DISABLE
-#define port4   ENABLE
-#define port5   DISABLE
-#define port6   ENABLE
-#define port7   DISABLE
-#define ENABLE 1
-#define DISABLE 0
+
 
 namespace DigitalTwin {
 
@@ -27,8 +18,8 @@ namespace DigitalTwin {
     public:
         Sensor();
         static Sensor *get_share_sensor_instance();
-        void get_all_data();
-        void get_single_data(int idx, char * buffer);
+        void get_all_data(char*);
+        void get_single_data(int, char*);
 
     private:
         static int port_schedule[8];

@@ -34,16 +34,16 @@ int keyIndex = 0;            // your network key index number (needed only for W
 int status = WL_IDLE_STATUS;
 // if you don't want to use DNS (and reduce your sketch size)
 // use the numeric IP instead of the name for the server:
-IPAddress server(192,168,1,141);  // numeric IP for Google (no DNS)
+IPAddress server(192, 168, 1, 141);  // numeric IP for Google (no DNS)
 //char server[] = "www.google.com";    // name address for Google (using DNS)
 #define PORT 3490
 // Initialize the Ethernet client library
 // with the IP address and port of the server
 // that you want to connect to (port 80 is default for HTTP):
 WiFiClient client;
-char buffer[200];
 
-int time_idx=0;
+
+int time_idx = 0;
 
 void printWifiStatus() {
     // print the SSID of the network you're attached to:
@@ -64,13 +64,11 @@ void printWifiStatus() {
 
 void setup() {
     //Initialize serial and wait for port to open:
-    Serial.begin(9600);
-    while (!Serial) {
-        ; // wait for serial port to connect. Needed for native USB port only
+    Serial.begin(48000);
+    while (!Serial) { ; // wait for serial port to connect. Needed for native USB port only
     }
 
-    SENSOR->get_single_data(0, buffer);
-
+    SENSOR;
 
     // check for the WiFi module:
     if (WiFi.status() == WL_NO_MODULE) {
@@ -96,33 +94,46 @@ void setup() {
     Serial.println("\nStarting connection to server...");
 }
 
+const char PUT_header[] = "PUT /IMU_data.json HTTP/1.1\r\n";
+const char ending[] = "ending\r\n\r\n";
+char buffer[500];
+char tmp[30];
+
+unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
+const unsigned long postingInterval = 20L; // delay between updates, in milliseconds
 
 
+// this method makes an HTTP connection to the server:
+void sendRequest(const char * header) {
+
+    // if there's a successful connection:
+    if (client.connect(server, PORT)) {
+        //make the request
+        memset(buffer, 0, sizeof buffer / sizeof(char));
+        strcat(buffer, header);
+
+        memset(tmp, 0, sizeof tmp / sizeof(char));
+        sprintf(tmp, "time_idx = %d\n", time_idx++);
+        strcat(buffer, tmp);
+
+        SENSOR->get_all_data(buffer);
+        strcat(buffer, ending);
+        Serial.println(buffer);
+
+        client.println(buffer);
+
+        // note the time that the connection was made:
+        lastConnectionTime = millis();
+    } else {
+        // if you couldn't make a connection:
+        Serial.println("connection failed");
+    }
+}
 
 void loop() {
-//    for (int i = 0; i < 8; ++i) {
-//        String frame = SENSOR->get_single_data(i);
-//        delay(100);
-//    }
-    memset(buffer, 0, sizeof buffer/sizeof (char ));
-    strcat(buffer, "PUT /IMU_data.json HTTP/1.1\r\n");
-    sprintf(buffer, "time_idx = %d\n", time_idx++);
-    SENSOR->get_single_data(0, buffer);
-    strcat(buffer, "\n");
-    SENSOR->get_single_data(2, buffer);
-    strcat(buffer, "\n");
-    SENSOR->get_single_data(4, buffer);
-    strcat(buffer, "\n");
-    SENSOR->get_single_data(6, buffer);
-    if (client.connect(server, PORT)) {
-        Serial.println("connected to server");
-        Serial.print("time_idx = ");
-        Serial.println(time_idx);
-        client.println(buffer);
-        client.println("\r\n");
+
+    if(millis() - lastConnectionTime > postingInterval) {
+        sendRequest(PUT_header);
     }
-
-    delay(2000);
-
 
 }
