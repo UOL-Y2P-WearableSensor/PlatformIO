@@ -30,8 +30,8 @@ namespace DigitalTwin {
     }
 
     Sensor::Sensor() {
-        Wire.begin();
 
+        I2CMulti.begin();
         for (int i = 0; i < 8; i++) {
             if (this->port_schedule[i]) {
                 I2CMulti.selectPort(i);
@@ -46,7 +46,7 @@ namespace DigitalTwin {
         for (int i = 0; i < 8; i++) {
             if (this->port_schedule[i]) {
                 get_single_data(i, buffer);
-                strcat(buffer, "\n");
+                strcat(buffer, " ");
             }
         }
     }
@@ -58,17 +58,21 @@ namespace DigitalTwin {
 
         for (int i = 0; i < 8; i++) {
             if (this->port_schedule[i] && idx == i) {
-
-                memset(tmp, 0, sizeof tmp / sizeof(char));
                 memset(data, 0, sizeof data / sizeof(int16_t));
+                memset(tmp, 0, sizeof tmp / sizeof(char));
 
                 I2CMulti.selectPort(idx);
+
+                delay(20);
                 icm20600.getGyroscope(&data[0], &data[1], &data[2]);
-                icm20600.getAcceleration(&data[3], &data[4], &data[5]);
-                sprintf(tmp, "port_id_%d[%d][%d][%d][%d][%d][%d]",
-                        idx, data[0], data[1], data[2], data[3], data[4], data[5]
-                );
-                strcat(buffer, tmp);
+                delay(20);
+
+//                icm20600.getAcceleration(&data[3], &data[4], &data[5]);
+//                sprintf(tmp, "[%d] %d %d %d %d %d %d",
+//                        idx, data[0], data[1], data[2], data[3], data[4], data[5]
+//                );
+//                strcat(buffer, tmp);
+                strcat(buffer, "1231231231231231231231233211232311312312311233121231231232311231231231322");
             }
         }
     }

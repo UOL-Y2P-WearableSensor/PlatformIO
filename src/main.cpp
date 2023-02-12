@@ -42,8 +42,17 @@ IPAddress server(192, 168, 1, 141);  // numeric IP for Google (no DNS)
 // that you want to connect to (port 80 is default for HTTP):
 WiFiClient client;
 
+const char Authentication_header[] = "Authentication-RpLE44NHZx7WUwuUJFQY hello server, this is exhausted Yixiao...\r\n";
+const char PUT_header[] = "PUT /IMU_data.json HTTP/1.1\r\n";
+const char ending[] = "ending\r\n\r\n";
+char buffer[500];
+char tmp[30];
 
+unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
+const unsigned long postingInterval = 50L; // delay between updates, in milliseconds
 int time_idx = 0;
+
+void sendRequest(const char *);
 
 void printWifiStatus() {
     // print the SSID of the network you're attached to:
@@ -64,7 +73,7 @@ void printWifiStatus() {
 
 void setup() {
     //Initialize serial and wait for port to open:
-    Serial.begin(48000);
+    Serial.begin(9600);
     while (!Serial) { ; // wait for serial port to connect. Needed for native USB port only
     }
 
@@ -92,48 +101,65 @@ void setup() {
     printWifiStatus();
 
     Serial.println("\nStarting connection to server...");
-}
 
-const char PUT_header[] = "PUT /IMU_data.json HTTP/1.1\r\n";
-const char ending[] = "ending\r\n\r\n";
-char buffer[500];
-char tmp[30];
-
-unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
-const unsigned long postingInterval = 20L; // delay between updates, in milliseconds
-
-
-// this method makes an HTTP connection to the server:
-void sendRequest(const char * header) {
-
-    // if there's a successful connection:
     if (client.connect(server, PORT)) {
         //make the request
-        memset(buffer, 0, sizeof buffer / sizeof(char));
-        strcat(buffer, header);
-
-        memset(tmp, 0, sizeof tmp / sizeof(char));
-        sprintf(tmp, "time_idx = %d\n", time_idx++);
-        strcat(buffer, tmp);
-
-        SENSOR->get_all_data(buffer);
-        strcat(buffer, ending);
-        Serial.println(buffer);
-
-        client.println(buffer);
+        client.write(Authentication_header);
 
         // note the time that the connection was made:
         lastConnectionTime = millis();
     } else {
         // if you couldn't make a connection:
-        Serial.println("connection failed");
+        Serial.println("initial connection failed");
+        while (true);
     }
+}
+
+
+// this method makes an HTTP connection to the server:
+void sendRequest(const char *header) {
+
+    //make the request
+    memset(buffer, 0, sizeof buffer / sizeof(char));
+//    strcat(buffer, header);
+
+    memset(tmp, 0, sizeof tmp / sizeof(char));
+    sprintf(tmp, "time_idx = %d\n", time_idx++);
+    strcat(buffer, tmp);
+
+//    strcat(buffer, "123123123123123123123123321123231123312123123123231123123123132231231321312231232312312312312312312312312312332112323112331212312312323112312312313223123132131223123231231231231231231231231231233211232311233121231231232311231231231322312313213122312323123");
+    SENSOR->get_all_data(buffer);
+    Serial.println(buffer);
+
+    //write the request
+    client.write(buffer);
+
+    // note the time that the connection was made:
+    lastConnectionTime = millis();
+
 }
 
 void loop() {
 
-    if(millis() - lastConnectionTime > postingInterval) {
-        sendRequest(PUT_header);
+    if (!client.connected()) {
+        Serial.println("disconnect from server");
+        client.stop();
+
+        while (true);
+
+
     }
+
+
+    while (client.connected()) {
+        if (millis() - lastConnectionTime > postingInterval) {
+            sendRequest(PUT_header);
+        }
+//        while (client.available()) {
+//            char c = client.read();
+//            Serial.write(c);
+//        }
+    }
+
 
 }
