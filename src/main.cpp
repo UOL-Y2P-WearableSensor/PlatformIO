@@ -26,30 +26,27 @@
 
 # define SECRET_SSID "CastleBlack"
 # define SECRET_PASS "123123123"
+#define PORT 3490
+#define MSG_LENGTH 300
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = SECRET_SSID;        // your network SSID (name)
 char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
 int keyIndex = 0;            // your network key index number (needed only for WEP)
 
 int status = WL_IDLE_STATUS;
-// if you don't want to use DNS (and reduce your sketch size)
-// use the numeric IP instead of the name for the server:
 IPAddress server(192, 168, 1, 141);  // numeric IP for Google (no DNS)
-//char server[] = "www.google.com";    // name address for Google (using DNS)
-#define PORT 3490
-// Initialize the Ethernet client library
-// with the IP address and port of the server
-// that you want to connect to (port 80 is default for HTTP):
 WiFiClient client;
 
 const char Authentication_header[] = "Authentication-RpLE44NHZx7WUwuUJFQY hello server, this is exhausted Yixiao...\r\n";
 const char PUT_header[] = "PUT /IMU_data.json HTTP/1.1\r\n";
 const char ending[] = "ending\r\n\r\n";
-char buffer[500];
+char buffer[MSG_LENGTH];
 char tmp[30];
 
+
 unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
-const unsigned long postingInterval = 50L; // delay between updates, in milliseconds
+const unsigned long postingInterval = 20; // delay between updates, in milliseconds
+const unsigned long TIMEOUT = 2000; // delay between updates, in milliseconds
 int time_idx = 0;
 
 void sendRequest(const char *);
@@ -72,12 +69,13 @@ void printWifiStatus() {
 }
 
 void setup() {
-    //Initialize serial and wait for port to open:
-    Serial.begin(9600);
-    while (!Serial) { ; // wait for serial port to connect. Needed for native USB port only
-    }
+    Wire.begin();
+    Serial.begin(38400);
+    while (!Serial){};
 
     SENSOR;
+
+    Serial.println("hello");
 
     // check for the WiFi module:
     if (WiFi.status() == WL_NO_MODULE) {
@@ -100,65 +98,106 @@ void setup() {
     Serial.println("Connected to WiFi");
     printWifiStatus();
 
-    Serial.println("\nStarting connection to server...");
-
-    if (client.connect(server, PORT)) {
-        //make the request
-        client.write(Authentication_header);
-
-        // note the time that the connection was made:
-        lastConnectionTime = millis();
-    } else {
-        // if you couldn't make a connection:
-        Serial.println("initial connection failed");
-        while (true);
+    while (1){
+        if (client.connect(server, PORT)) {
+            //make the request
+            client.write(Authentication_header);
+            Serial.println("Connected to server");
+            // note the time that the connection was made:
+            lastConnectionTime = millis();
+            break;
+        }
+        Serial.println("do you open the server? go, check it");
+        delay(500);
     }
+
+
+
 }
 
+
+/**
+ * fill the rest of buffer with '\0'
+ * @param buffer
+ * @param buffer_size
+ */
+void stable_length(char * buffer, int buffer_size, char filling){
+    for (int i = 0; i < buffer_size; ++i) {
+        if (buffer[i]=='\0'){
+            for (int j = i; j < buffer_size; ++j) {
+                buffer[j]=filling;
+            }
+            return;
+        }
+    }
+}
+char buffer_test[500];
+void print_externalIMU_with_MUX(){
+    memset(buffer_test, 0, sizeof buffer_test / sizeof(char));
+    SENSOR->get_multiplexer_data(buffer_test);
+    Serial.println(buffer_test);       //serial will block the speed
+}
 
 // this method makes an HTTP connection to the server:
 void sendRequest(const char *header) {
 
     //make the request
     memset(buffer, 0, sizeof buffer / sizeof(char));
-//    strcat(buffer, header);
 
     memset(tmp, 0, sizeof tmp / sizeof(char));
-    sprintf(tmp, "time_idx = %d\n", time_idx++);
-    strcat(buffer, tmp);
 
-//    strcat(buffer, "123123123123123123123123321123231123312123123123231123123123132231231321312231232312312312312312312312312312332112323112331212312312323112312312313223123132131223123231231231231231231231231231233211232311233121231231232311231231231322312313213122312323123");
-    SENSOR->get_all_data(buffer);
-    Serial.println(buffer);
+    if (time_idx==1000) time_idx=0;
+    itoa(time_idx++, tmp, 10);
+
+    strcat(buffer, "[time_idx = ");
+    strcat(buffer, tmp);
+    strcat(buffer, "]");
+
+//    SENSOR->get_const_data(buffer);   //const char array
+    SENSOR->get_onboard_data(buffer);
+    strcat(buffer, "\n");
+    stable_length(buffer, MSG_LENGTH-1, '\0');
 
     //write the request
     client.write(buffer);
+//    Serial.println(buffer);       //serial will block the speed
 
     // note the time that the connection was made:
     lastConnectionTime = millis();
 
 }
 
+
 void loop() {
-
-    if (!client.connected()) {
-        Serial.println("disconnect from server");
-        client.stop();
-
-        while (true);
-
-
-    }
 
 
     while (client.connected()) {
         if (millis() - lastConnectionTime > postingInterval) {
             sendRequest(PUT_header);
+//            print_externalIMU_with_MUX();
         }
-//        while (client.available()) {
-//            char c = client.read();
-//            Serial.write(c);
-//        }
+    }
+
+    Serial.println("Disconnected! Try reconnection...(TIMEOUT set to be 2s)");
+    client.stop();
+
+    while (!client.connected()) {
+
+        if (millis() - lastConnectionTime > TIMEOUT) {
+            Serial.println("re-connected failed---TIMEOUT---into the dead loop, QWQ");
+            while (true);
+        }
+        if (client.connect(server, PORT)) {
+            //make the request
+            client.write(Authentication_header);
+            Serial.println("re-connected");
+
+            // note the time that the connection was made:
+            lastConnectionTime = millis();
+            break;
+        }
+        delay(60);
+
     }
 
 
