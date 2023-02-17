@@ -9,34 +9,42 @@
 #include <Wire.h>
 #include "../lib/DFRobot_I2C_Multiplexer-main/DFRobot_I2C_Multiplexer.h"
 #include <Arduino_LSM6DS3.h>
+#include <MahonyAHRS.h>
 
-namespace DigitalTwin {
+#define port0   ENABLE
+#define port1   DISABLE
+#define port2   DISABLE
+#define port3   DISABLE
+#define port4   DISABLE
+#define port5   DISABLE
+#define port6   DISABLE
+#define port7   ENABLE
+#define ENABLE 1
+#define DISABLE 0
+
+
 
     class Sensor {
 
     public:
         Sensor();
-        static Sensor *get_share_sensor_instance();
-        static void get_multiplexer_data(char*);
-        static void get_onboard_data(char*);
+        void init();
+        void get_multiplexer_data(char*);
+        void get_onboard_data(char*);
         static void get_const_data(char*);
-        static void get_single_data(char*);
+        void get_single_data(char*, int);
+
     private:
-        static int port_schedule[];
-        static DFRobot_I2C_Multiplexer I2CMulti;
-        static Sensor *sensor_instance;
-        static ICM20600 IMU_external;
-        static char buff[];
-        static int16_t data_externalIMU[];
-        static float data_onboardIMU[];
-        static float calibration[];
-        static void calibrating();
+        int port_schedule[8]= {port0, port1,
+                               port2, port3,
+                               port4, port5,
+                               port6, port7};
+        int16_t data_externalIMU[6];
+        float data_onboardIMU[6];
 
 
     };
 
-}
 
 
-#define SENSOR DigitalTwin::Sensor::get_share_sensor_instance()
 #endif //ARDUINO_UNO_WIFI_REV2_SENSOR_H
