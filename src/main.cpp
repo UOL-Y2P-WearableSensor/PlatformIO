@@ -24,12 +24,15 @@
 #include <WiFiNINA.h>
 #include "Sensor.h"
 #include "socket.h"
-
+#include <ArduinoJson.h>
 //# define SECRET_SSID "OpenWrt"
 # define SECRET_SSID "CastleBlack"
 # define SECRET_PASS "123123123"
 #define PORT 3490
 #define MSG_LENGTH 1024
+#define POSE_PER_REQUEST 1
+
+#define FPS 100
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = SECRET_SSID;        // your network SSID (name)
 char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
@@ -43,9 +46,8 @@ Sensor sensor;
 const char Authentication_header[] = "Authentication-RpLE44NHZx7WUwuUJFQY hello server, this is exhausted Yixiao...\r\n";
 char socket_buff[MSG_LENGTH];
 
-
 unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
-const unsigned long postingInterval = 20; // delay between updates, in milliseconds
+const unsigned long postingInterval = 1000/FPS; // delay between updates, in milliseconds
 const unsigned long TIMEOUT = 2000; // delay between updates, in milliseconds
 int time_idx = 0;
 
@@ -53,11 +55,8 @@ int time_idx = 0;
 void setup() {
     Wire.begin();
     Serial.begin(9600);
-    while (!Serial);
+    while (!Serial){};
     sensor.init();
-
-
-    Serial.println("welcome");
 
     // check for the WiFi module:
     if (WiFi.status() == WL_NO_MODULE) {
@@ -93,6 +92,19 @@ void setup() {
         delay(500);
     }
 
+    StaticJsonDocument<200> doc;
+    doc["time_idx"] = 1;
+    JsonObject json_IMU_onboard = doc.createNestedObject("IMU_onboard");
+    json_IMU_onboard["yaw"]=1;
+    json_IMU_onboard["pitch"]=1;
+    json_IMU_onboard["roll"]=1;
+    JsonArray json_IMU_external = doc.createNestedArray("IMU_external");
+    JsonObject json_IMU_external1 = doc.createNestedObject("IMU_onboard");
+    json_IMU_external1["yaw"]=2;
+    json_IMU_external1["pitch"]=2;
+    json_IMU_external1["roll"]=2;
+    json_IMU_external.add(json_IMU_external1);
+    serializeJsonPretty(doc, Serial);
 }
 
 
@@ -123,7 +135,7 @@ void loop() {
 
     while (client.connected()) {
 
-        if (i == 5) {
+        if (i == POSE_PER_REQUEST) {
             sendRequest(socket_buff);
             memset(socket_buff, 0, sizeof socket_buff / sizeof(char));
             i = 0;
@@ -131,7 +143,13 @@ void loop() {
 
         if (millis() - lastConnectionTime >= postingInterval) {
             i++;
+            Serial.print("period = ");
+            Serial.print(millis() - lastConnectionTime);
+            Serial.print("ms");
             sensor.get_multiplexer_data(socket_buff);
+//            sensor.get_single_data(socket_buff, 0);
+//            sensor.get_onboard_data(socket_buff);
+            Serial.print("\t");
             lastConnectionTime = millis();
         }
 

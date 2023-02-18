@@ -22,11 +22,12 @@ include_directories(${includes}
         .pio/libdeps/uno_wifi_rev2/Arduino_LSM6DS3/src
         .pio/libdeps/uno_wifi_rev2/WiFiNINA/src
         .pio/libdeps/uno_wifi_rev2/Mahony/src
+        .pio/libdeps/uno_wifi_rev2/ArduinoJson/src
 
         )
 file(GLOB_RECURSE SOURCES ${sources}
-        ".pio/libdeps/uno_wifi_rev2/Arduino_LSM6DS3/src/*.cpp" "
-.pio/libdeps/uno_wifi_rev2/WiFiNINA/src/*.cpp"
+        ".pio/libdeps/uno_wifi_rev2/Arduino_LSM6DS3/src/*.cpp"
+        ".pio/libdeps/uno_wifi_rev2/WiFiNINA/src/*.cpp"
         ".pio/libdeps/uno_wifi_rev2/Mahony/src/*.cpp")
 
 
