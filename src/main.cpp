@@ -24,38 +24,31 @@
 #include <WiFiNINA.h>
 #include "Sensor.h"
 #include "socket.h"
+#include "main.h"
 #include <ArduinoJson.h>
-//# define SECRET_SSID "OpenWrt"
-# define SECRET_SSID "CastleBlack"
-# define SECRET_PASS "123123123"
-#define PORT 3490
-#define MSG_LENGTH 1024
-#define POSE_PER_REQUEST 1
 
-#define FPS 100
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = SECRET_SSID;        // your network SSID (name)
 char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
-int keyIndex = 0;            // your network key index number (needed only for WEP)
 
 int status = WL_IDLE_STATUS;
 IPAddress server(192, 168, 1, 141);  // numeric IP for Google (no DNS)
 WiFiClient client;
 Sensor sensor;
+Euler_angle eulerAngle;
+StaticJsonDocument<200> doc;
 
+long time_idx = 0;
 const char Authentication_header[] = "Authentication-RpLE44NHZx7WUwuUJFQY hello server, this is exhausted Yixiao...\r\n";
-char socket_buff[MSG_LENGTH];
-
 unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
-const unsigned long postingInterval = 1000/FPS; // delay between updates, in milliseconds
+const unsigned long postingInterval = 1000 / FPS; // delay between updates, in milliseconds
 const unsigned long TIMEOUT = 2000; // delay between updates, in milliseconds
-int time_idx = 0;
 
 
 void setup() {
     Wire.begin();
     Serial.begin(9600);
-    while (!Serial){};
+    while (!Serial) {};
     sensor.init();
 
     // check for the WiFi module:
@@ -65,6 +58,16 @@ void setup() {
         while (true);
     }
 
+    //check the port number
+    char check[300];
+    sprintf(check,
+            "Check port configuration:\n"
+            "\t\tIMU_LEFT_FEMUR at Port.%d\n"
+            "\t\tIMU_RIGHT_FEMUR at Port.%d\n"
+            "\t\tIMU_LEFT_TIBIA at Port.%d\n"
+            "\t\tIMU_RIGHT_TIBIA at Port.%d",
+            IMU_LEFT_FEMUR, IMU_RIGHT_FEMUR, IMU_LEFT_TIBIA, IMU_RIGHT_TIBIA);
+    Serial.println(check);
 
     // attempt to connect to WiFi network:
     while (status != WL_CONNECTED) {
@@ -77,7 +80,7 @@ void setup() {
         delay(2000);
     }
     Serial.println("Connected to WiFi");
-    printWifiStatus();
+
 
     while (true) {
         if (client.connect(server, PORT)) {
@@ -92,64 +95,39 @@ void setup() {
         delay(500);
     }
 
-    StaticJsonDocument<200> doc;
-    doc["time_idx"] = 1;
-    JsonObject json_IMU_onboard = doc.createNestedObject("IMU_onboard");
-    json_IMU_onboard["yaw"]=1;
-    json_IMU_onboard["pitch"]=1;
-    json_IMU_onboard["roll"]=1;
-    JsonArray json_IMU_external = doc.createNestedArray("IMU_external");
-    JsonObject json_IMU_external1 = doc.createNestedObject("IMU_onboard");
-    json_IMU_external1["yaw"]=2;
-    json_IMU_external1["pitch"]=2;
-    json_IMU_external1["roll"]=2;
-    json_IMU_external.add(json_IMU_external1);
-    serializeJsonPretty(doc, Serial);
-}
 
-
-// this method makes an HTTP connection to the server:
-void sendRequest(char *content) {
-    char tmp[30];
-    //make the request
-    memset(tmp, 0, sizeof tmp / sizeof(char));
-
-    //add one header to indicate time
-    if (time_idx == 1000) time_idx = 0;
-    client.write("[time_idx = ");
-    itoa(time_idx++, tmp, 10);
-    client.write(tmp);
-    client.write("]");
-
-
-    //write the request
-    client.write(content);
-    client.write("\n");
+    doc["time_idx"] = 0;
+    JsonObject json_IMU_body = doc.createNestedObject("BODY");
+    JsonObject json_IMU_right_femur = doc.createNestedObject("IMU_LEFT_FEMUR");
+    JsonObject json_IMU_left_femur = doc.createNestedObject("IMU_RIGHT_FEMUR");
+    JsonObject json_IMU_right_tibia = doc.createNestedObject("IMU_LEFT_TIBIA");
+    JsonObject json_IMU_left_tibia = doc.createNestedObject("IMU_RIGHT_TIBIA");
 }
 
 
 void loop() {
 
-    int i = 0;
-    memset(socket_buff, 0, sizeof socket_buff / sizeof(char));
-
+    int pose_per_request = 0;
     while (client.connected()) {
 
-        if (i == POSE_PER_REQUEST) {
-            sendRequest(socket_buff);
-            memset(socket_buff, 0, sizeof socket_buff / sizeof(char));
-            i = 0;
+        if (pose_per_request == MEX_POSES_PER_REQUEST) {
+            serializeJsonPretty(doc, client);
+            pose_per_request = 0;
         }
 
         if (millis() - lastConnectionTime >= postingInterval) {
-            i++;
-            Serial.print("period = ");
-            Serial.print(millis() - lastConnectionTime);
-            Serial.print("ms");
-            sensor.get_multiplexer_data(socket_buff);
-//            sensor.get_single_data(socket_buff, 0);
-//            sensor.get_onboard_data(socket_buff);
-            Serial.print("\t");
+            pose_per_request++;
+            doc["time_idx"] = time_idx++;
+
+            sensor.get_single_data(&eulerAngle, IMU_LEFT_FEMUR);
+            doc["IMU_LEFT_FEMUR"]["yaw"] = eulerAngle.yaw;
+            doc["IMU_LEFT_FEMUR"]["roll"] = eulerAngle.roll;
+            doc["IMU_LEFT_FEMUR"]["pitch"] = eulerAngle.pitch;
+
+            sensor.get_single_data(&eulerAngle, IMU_RIGHT_FEMUR);
+            doc["IMU_RIGHT_FEMUR"]["yaw"] = eulerAngle.yaw;
+            doc["IMU_RIGHT_FEMUR"]["roll"] = eulerAngle.roll;
+            doc["IMU_RIGHT_FEMUR"]["pitch"] = eulerAngle.pitch;
             lastConnectionTime = millis();
         }
 
