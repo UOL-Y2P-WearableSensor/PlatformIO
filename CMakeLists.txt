@@ -43,4 +43,4 @@ add_custom_target(
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_executable(Z_DUMMY_TARGET ${SRC_LIST} src/Sensor.cpp src/Sensor.h src/socket.cpp src/socket.h)
+add_executable(Z_DUMMY_TARGET ${SRC_LIST} src/Sensor.cpp src/Sensor.h src/socket.cpp src/socket.h src/main.h)

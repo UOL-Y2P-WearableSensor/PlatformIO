@@ -29,33 +29,43 @@ void Sensor::init() {
 
     I2CMulti.begin();
     for (int i = 0; i < 8; i++) {
-        if (Sensor::port_schedule[i]) {
+        if (i == IMU_LEFT_FEMUR
+            || i == IMU_RIGHT_FEMUR
+            || i == IMU_LEFT_TIBIA
+            || i == IMU_RIGHT_TIBIA) {
             I2CMulti.selectPort(i);
             IMU_external.initialize();
             IMU_external_data[i].filter.begin(100);
-            calibrating_external(i);
             delay(100);
         }
     }
+    calibrating_external();
 
 }
 
 
 void Sensor::calibrating_onboard() {
-    Serial.println("IMU_LSM6DS3 GYRO calibration, ETA=10s...");
-    int idx = 0;
+    Serial.print("IMU_LSM6DS3 GYRO calibration, ETA=");
+    Serial.print(CALI_TIME_MS);
+    Serial.println("ms");
+
+    int num = 0;
     memset(IMU_onboard_data.gyro_cali, 0, 3);
-    while (idx < MAX_CALIBRATING_NUM) {
+    unsigned long start_time = millis();
+    while (millis() <= start_time + CALI_TIME_MS) {
         if (!(IMU_onboard.accelerationAvailable() && IMU_onboard.gyroscopeAvailable())) continue;
 
-        idx++;
+        num++;
         memset(IMU_onboard_data.gyro, 0, 3);
         IMU_onboard.readGyroscope(IMU_onboard_data.gyro[0],
                                   IMU_onboard_data.gyro[1],
                                   IMU_onboard_data.gyro[2]);
         for (int i = 0; i < 3; ++i) {
-            IMU_onboard_data.gyro_cali[i] -= (IMU_onboard_data.gyro[i] / MAX_CALIBRATING_NUM);
+            IMU_onboard_data.gyro_cali[i] -= IMU_onboard_data.gyro[i];
         }
+    }
+    for (int i = 0; i < 3; ++i) {
+        IMU_onboard_data.gyro_cali[i] = IMU_onboard_data.gyro_cali[i] / num;
     }
     Serial.print("IMU_onboard_data.gyro_cali\n");
     Serial.print("\t[x]=");
@@ -66,34 +76,58 @@ void Sensor::calibrating_onboard() {
     Serial.println(IMU_onboard_data.gyro_cali[2]);
 }
 
-void Sensor::calibrating_external(int port) {
-    Serial.print("IMU_external[");
-    Serial.print(port);
-    Serial.println("].gyro_cali");
+void Sensor::calibrating_external() {
 
-    int idx = 0;
-    memset(IMU_external_data[port].gyro_cali, 0, 3);
+    unsigned long start_time = millis();
+    int num = 0;
 
-    while (idx < MAX_CALIBRATING_NUM) {
-        idx++;
-        memset(IMU_external_data[port].gyro, 0, 3);
-        IMU_external.getGyroscope(&IMU_external_data[port].gyro[0],
-                                  &IMU_external_data[port].gyro[1],
-                                  &IMU_external_data[port].gyro[2]);
-        for (int i = 0; i < 3; ++i) {
-            IMU_external_data[port].gyro_cali[i] -= (IMU_external_data[port].gyro[i] );
+    for (int port = 0; port < 8; ++port) {
+        memset(IMU_external_data[port].gyro_cali, 0, 3);
+    }
+
+    while (millis() <= start_time + CALI_TIME_MS) {
+        num++;
+
+        for (int port = 0; port < 8; port++) {
+            if (port == IMU_LEFT_FEMUR
+                || port == IMU_RIGHT_FEMUR
+                || port == IMU_LEFT_TIBIA
+                || port == IMU_RIGHT_TIBIA) {
+                I2CMulti.selectPort(port);
+                memset(IMU_external_data[port].gyro, 0, 3);
+                IMU_external.getGyroscope(&IMU_external_data[port].gyro[0],
+                                          &IMU_external_data[port].gyro[1],
+                                          &IMU_external_data[port].gyro[2]);
+                for (int i = 0; i < 3; ++i) {
+                    IMU_external_data[port].gyro_cali[i] -= (IMU_external_data[port].gyro[i]);
+                }
+            }
         }
     }
-    for (int i = 0; i < 3; ++i) {
-        IMU_external_data[port].gyro_cali[i] = IMU_external_data[port].gyro_cali[i] / MAX_CALIBRATING_NUM;
+    Serial.print("cali data num: ");
+    Serial.println(num);
+    for (int port = 0; port < 8; port++) {
+        if (port == IMU_LEFT_FEMUR
+            || port == IMU_RIGHT_FEMUR
+            || port == IMU_LEFT_TIBIA
+            || port == IMU_RIGHT_TIBIA) {
+            for (int i = 0; i < 3; ++i) {
+                IMU_external_data[port].gyro_cali[i] = IMU_external_data[port].gyro_cali[i] / num;
+            }
+
+            Serial.print("IMU_external[");
+            Serial.print(port);
+            Serial.println("].gyro_cali");
+            Serial.print("\t\t[x]=");
+            Serial.println(IMU_external_data[port].gyro_cali[0]);
+            Serial.print("\t\t[y]=");
+            Serial.println(IMU_external_data[port].gyro_cali[1]);
+            Serial.print("\t\t[z]=");
+            Serial.println(IMU_external_data[port].gyro_cali[2]);
+
+        }
     }
 
-    Serial.print("\t[x]=");
-    Serial.println(IMU_external_data[port].gyro_cali[0]);
-    Serial.print("\t[y]=");
-    Serial.println(IMU_external_data[port].gyro_cali[1]);
-    Serial.print("\t[z]=");
-    Serial.println(IMU_external_data[port].gyro_cali[2]);
 
 
 }
@@ -130,23 +164,22 @@ void Sensor::get_const_data(char *buffer) {
 //}
 
 
-void Sensor::get_multiplexer_data(char *buffer) {
-    int max_port_num = 8;
-    char buff[100];
-    for (int i = 0; i < max_port_num; i++) {
-        if (port_schedule[i]) {
-            memset(buff, 0, sizeof buff/ sizeof(char));
-            sprintf(buff, "[%d]", i);
-            strcat(buffer, buff);
-            get_single_data(buffer, i);
-        }
-    }
-
-}
-
+//void Sensor::get_multiplexer_data(char *buffer) {
+//    int max_port_num = 8;
+//    char buff[100];
+//    for (int i = 0; i < max_port_num; i++) {
+//        if (port_schedule[i]) {
+//            memset(buff, 0, sizeof buff/ sizeof(char));
+//            sprintf(buff, "[%d]", i);
+//            strcat(buffer, buff);
+//            get_single_data(buffer, i);
+//        }
+//    }
+//}
 
 
-void Sensor::get_single_data(char *input, int idx) {
+
+void Sensor::get_single_data(Euler_angle *input, int idx) {
 
     I2CMulti.selectPort(idx);
     memset(IMU_external_data[idx].gyro, 0, 3);
@@ -162,16 +195,19 @@ void Sensor::get_single_data(char *input, int idx) {
                                  &IMU_external_data[idx].acc[2]);
 
 
-
     IMU_external_data[idx].filter.updateIMU(
-            (float)IMU_external_data[idx].gyro[0] + IMU_external_data[idx].gyro_cali[0],
-            (float)IMU_external_data[idx].gyro[1] + IMU_external_data[idx].gyro_cali[1],
-            (float)IMU_external_data[idx].gyro[2] + IMU_external_data[idx].gyro_cali[2],
+            (float) IMU_external_data[idx].gyro[0] + IMU_external_data[idx].gyro_cali[0],
+            (float) IMU_external_data[idx].gyro[1] + IMU_external_data[idx].gyro_cali[1],
+            (float) IMU_external_data[idx].gyro[2] + IMU_external_data[idx].gyro_cali[2],
             IMU_external_data[idx].acc[0],
             IMU_external_data[idx].acc[1],
             IMU_external_data[idx].acc[2]);
 
-    phase2char_Euler(input, idx);
+    input->pitch = IMU_external_data[idx].filter.getPitch();
+    input->yaw = IMU_external_data[idx].filter.getYaw();
+    input->roll = IMU_external_data[idx].filter.getRoll();
+
+//    phase2char_Euler(input, idx);
 //    Serial.print("Roll: ");
 //    Serial.print(IMU_external_data[idx].filter.getRoll());
 //    Serial.print("\tPitch: ");
@@ -181,6 +217,7 @@ void Sensor::get_single_data(char *input, int idx) {
 
     I2CMulti.selectPort(8);
 }
+
 void Sensor::phase2char_6dof(char *input, int idx) {
     char buff[100];
     for (int i: IMU_external_data[idx].gyro) {
@@ -197,24 +234,25 @@ void Sensor::phase2char_6dof(char *input, int idx) {
     }
 }
 
-void Sensor::phase2char_Euler(char * input, int port) {
+void Sensor::phase2char_Euler(char *input, int port) {
     char buff[100];
 
-    memset(buff, 0, sizeof buff/ sizeof(char ));
+    memset(buff, 0, sizeof buff / sizeof(char));
     dtostrf(IMU_external_data[port].filter.getRoll(), 8, 3, buff);
     strcat(input, buff);
     strcat(input, " ");
 
-    memset(buff, 0, sizeof buff/ sizeof(char ));
+    memset(buff, 0, sizeof buff / sizeof(char));
     dtostrf(IMU_external_data[port].filter.getPitch(), 8, 3, buff);
     strcat(input, buff);
     strcat(input, " ");
 
-    memset(buff, 0, sizeof buff/ sizeof(char ));
+    memset(buff, 0, sizeof buff / sizeof(char));
     dtostrf(IMU_external_data[port].filter.getYaw(), 8, 3, buff);
     strcat(input, buff);
 
 }
+
 Sensor::Sensor() = default;
 
 
