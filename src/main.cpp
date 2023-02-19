@@ -36,13 +36,13 @@ IPAddress server(192, 168, 1, 141);  // numeric IP for Google (no DNS)
 WiFiClient client;
 Sensor sensor;
 Euler_angle eulerAngle;
-StaticJsonDocument<200> doc;
+StaticJsonDocument<512> doc;
 
 long time_idx = 0;
 const char Authentication_header[] = "Authentication-RpLE44NHZx7WUwuUJFQY hello server, this is exhausted Yixiao...\r\n";
 unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
 const unsigned long postingInterval = 1000 / FPS; // delay between updates, in milliseconds
-const unsigned long TIMEOUT = 2000; // delay between updates, in milliseconds
+const unsigned long TIMEOUT = 10000; // delay between updates, in milliseconds
 
 
 void setup() {
@@ -96,12 +96,12 @@ void setup() {
     }
 
 
-    doc["time_idx"] = 0;
-    JsonObject json_IMU_body = doc.createNestedObject("BODY");
-    JsonObject json_IMU_right_femur = doc.createNestedObject("IMU_LEFT_FEMUR");
-    JsonObject json_IMU_left_femur = doc.createNestedObject("IMU_RIGHT_FEMUR");
-    JsonObject json_IMU_right_tibia = doc.createNestedObject("IMU_LEFT_TIBIA");
-    JsonObject json_IMU_left_tibia = doc.createNestedObject("IMU_RIGHT_TIBIA");
+
+//    JsonObject json_IMU_body = doc.createNestedObject("BODY");
+    JsonObject json_IMU_right_femur = doc.createNestedObject("L_F");
+    JsonObject json_IMU_left_femur = doc.createNestedObject("R_F");
+//    JsonObject json_IMU_right_tibia = doc.createNestedObject("L_T");
+//    JsonObject json_IMU_left_tibia = doc.createNestedObject("R_T");
 }
 
 
@@ -110,25 +110,28 @@ void loop() {
     int pose_per_request = 0;
     while (client.connected()) {
 
-        if (pose_per_request == MEX_POSES_PER_REQUEST) {
-            serializeJsonPretty(doc, client);
+        if (pose_per_request == MAX_POSES_PER_REQUEST) {
+
+            serializeJson(doc, client);
+//            serializeJsonPretty(doc, client);
+            client.write("\n");
             pose_per_request = 0;
         }
 
         if (millis() - lastConnectionTime >= postingInterval) {
             pose_per_request++;
-            doc["time_idx"] = time_idx++;
 
             sensor.get_single_data(&eulerAngle, IMU_LEFT_FEMUR);
-            doc["IMU_LEFT_FEMUR"]["yaw"] = eulerAngle.yaw;
-            doc["IMU_LEFT_FEMUR"]["roll"] = eulerAngle.roll;
-            doc["IMU_LEFT_FEMUR"]["pitch"] = eulerAngle.pitch;
+            doc["L_F"]["y"] = round(eulerAngle.yaw*100)/100;
+            doc["L_F"]["r"] = round(eulerAngle.roll*100)/100;
+            doc["L_F"]["p"] = round(eulerAngle.pitch*100)/100;
 
             sensor.get_single_data(&eulerAngle, IMU_RIGHT_FEMUR);
-            doc["IMU_RIGHT_FEMUR"]["yaw"] = eulerAngle.yaw;
-            doc["IMU_RIGHT_FEMUR"]["roll"] = eulerAngle.roll;
-            doc["IMU_RIGHT_FEMUR"]["pitch"] = eulerAngle.pitch;
+            doc["R_F"]["y"] = round(eulerAngle.yaw*100)/100;
+            doc["R_F"]["r"] = round(eulerAngle.roll*100)/100;
+            doc["R_F"]["p"] = round(eulerAngle.pitch*100)/100;
             lastConnectionTime = millis();
+
         }
 
     }

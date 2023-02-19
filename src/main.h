@@ -11,17 +11,17 @@
 # define SECRET_PASS "123123123"
 
 #define PORT 3490
-#define MEX_POSES_PER_REQUEST 1
+#define MAX_POSES_PER_REQUEST 1
 #define FPS 100
 #define CALI_TIME_MS 2000
-struct Euler_angle{
+struct Euler_angle {
     float yaw;
     float pitch;
     float roll;
 };
 
 //port number
-enum Wearable_sensor{
+enum Wearable_sensor {
     IMU_LEFT_FEMUR = 0,
     IMU_RIGHT_FEMUR = 7,
     IMU_LEFT_TIBIA = 2,
