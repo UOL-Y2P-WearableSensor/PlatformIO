@@ -25,9 +25,8 @@
 #include "Sensor.h"
 #include "socket.h"
 #include "main.h"
-#include <ArduinoJson.h>
 
-///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+
 char ssid[] = SECRET_SSID;        // your network SSID (name)
 char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
 
@@ -36,7 +35,7 @@ IPAddress server(192, 168, 1, 141);  // numeric IP for Google (no DNS)
 WiFiClient client;
 Sensor sensor;
 Euler_angle eulerAngle;
-StaticJsonDocument<512> doc;
+
 
 long time_idx = 0;
 const char Authentication_header[] = "Authentication-RpLE44NHZx7WUwuUJFQY hello server, this is exhausted Yixiao...\r\n";
@@ -95,41 +94,45 @@ void setup() {
         delay(500);
     }
 
-
-
-//    JsonObject json_IMU_body = doc.createNestedObject("BODY");
-    JsonObject json_IMU_right_femur = doc.createNestedObject("L_F");
-    JsonObject json_IMU_left_femur = doc.createNestedObject("R_F");
-//    JsonObject json_IMU_right_tibia = doc.createNestedObject("L_T");
-//    JsonObject json_IMU_left_tibia = doc.createNestedObject("R_T");
 }
 
 
 void loop() {
 
     int pose_per_request = 0;
+
     while (client.connected()) {
 
         if (pose_per_request == MAX_POSES_PER_REQUEST) {
-
-            serializeJson(doc, client);
-//            serializeJsonPretty(doc, client);
             client.write("\n");
             pose_per_request = 0;
         }
 
         if (millis() - lastConnectionTime >= postingInterval) {
             pose_per_request++;
+            client.write("[");
+            client.write(String(time_idx++).c_str());
+            client.write("]");
+            client.write(" ");
 
-            sensor.get_single_data(&eulerAngle, IMU_LEFT_FEMUR);
-            doc["L_F"]["y"] = round(eulerAngle.yaw*100)/100;
-            doc["L_F"]["r"] = round(eulerAngle.roll*100)/100;
-            doc["L_F"]["p"] = round(eulerAngle.pitch*100)/100;
+            for (int i = 0; i < 8; ++i) {
+                if (i == IMU_LEFT_FEMUR
+                    || i == IMU_RIGHT_FEMUR
+//                    || i == IMU_LEFT_TIBIA
+//                    || i == IMU_RIGHT_TIBIA
+                    ) {
 
-            sensor.get_single_data(&eulerAngle, IMU_RIGHT_FEMUR);
-            doc["R_F"]["y"] = round(eulerAngle.yaw*100)/100;
-            doc["R_F"]["r"] = round(eulerAngle.roll*100)/100;
-            doc["R_F"]["p"] = round(eulerAngle.pitch*100)/100;
+                    sensor.get_single_data(&eulerAngle, i);
+                    client.write(String(eulerAngle.yaw, 2).c_str());
+                    client.write(" ");
+                    client.write(String(eulerAngle.roll, 2).c_str());
+                    client.write(" ");
+                    client.write(String(eulerAngle.pitch, 2).c_str());
+                    client.write(" ");
+
+                    }
+            }
+
             lastConnectionTime = millis();
 
         }
