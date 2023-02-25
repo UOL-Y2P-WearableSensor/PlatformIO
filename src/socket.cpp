@@ -22,6 +22,7 @@ void stable_length(char * buffer, int buffer_size, char filling){
 }
 
 
+
 void printWifiStatus() {
     // print the SSID of the network you're attached to:
     Serial.print("SSID: ");

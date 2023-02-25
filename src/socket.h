@@ -4,9 +4,8 @@
 
 #ifndef ARDUINO_UNO_WIFI_REV2_SOCKET_H
 #define ARDUINO_UNO_WIFI_REV2_SOCKET_H
-
+#include "main.h"
 void stable_length(char * buffer, int buffer_size, char filling);
 void printWifiStatus();
-
 
 #endif //ARDUINO_UNO_WIFI_REV2_SOCKET_H

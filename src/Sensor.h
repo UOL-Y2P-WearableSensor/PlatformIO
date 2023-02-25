@@ -7,7 +7,7 @@
 
 #include "../lib/Seeed_ICM20600_AK09918-master/ICM20600.h"
 #include "../lib/Seeed_ICM20600_AK09918-master/AK09918.h"
-#include "../lib/MahonyAHRS-master/src/MahonyAHRS.h"
+#include "../lib/MadgwickAHRS-master/src/MadgwickAHRS.h"
 #include "main.h"
 
 struct IMU_externalData{
@@ -15,24 +15,22 @@ struct IMU_externalData{
     int16_t acc[3];     //unit: mg
     int32_t mag[3];     //unit: uT
     float gyro_cali[3];
-    Mahony filter;
+    Madgwick filter;
 };
 
 struct IMU_onboardData{
     float gyro[3];
     float acc[3];
     float gyro_cali[3];
-    Mahony filter;
+    Madgwick filter;
 };
 
     class Sensor {
 
     public:
         Sensor();
-
         void init();
-        void get_multiplexer_data(char*);
-        void get_onboard_data(char*);
+        void get_onboard_data(Euler_angle*);
         static void get_const_data(char*);
         void get_single_data(Euler_angle*, int);
 

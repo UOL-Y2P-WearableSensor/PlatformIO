@@ -19,13 +19,11 @@
  by Tom Igoe
  */
 
-
+#include "main.h"
 #include <SPI.h>
-#include <WiFiNINA.h>
 #include "Sensor.h"
 #include "socket.h"
-#include "main.h"
-
+#include <WiFiNINA.h>
 
 char ssid[] = SECRET_SSID;        // your network SSID (name)
 char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
@@ -37,16 +35,15 @@ Sensor sensor;
 Euler_angle eulerAngle;
 
 
-long time_idx = 0;
+int time_idx = 0;
 const char Authentication_header[] = "Authentication-RpLE44NHZx7WUwuUJFQY hello server, this is exhausted Yixiao...\r\n";
 unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
 const unsigned long postingInterval = 1000 / FPS; // delay between updates, in milliseconds
-const unsigned long TIMEOUT = 10000; // delay between updates, in milliseconds
-
+const unsigned long baud = 48000l;
 
 void setup() {
     Wire.begin();
-    Serial.begin(9600);
+    Serial.begin(baud);
     while (!Serial) {};
     sensor.init();
 
@@ -96,6 +93,12 @@ void setup() {
 
 }
 
+void sendEulerAngle(const Euler_angle *const angle) {
+    client.write(String(angle->roll, 2).c_str());
+    client.write(" ");
+    client.write(String(angle->pitch, 2).c_str());
+    client.write(" ");
+}
 
 void loop() {
 
@@ -110,29 +113,69 @@ void loop() {
 
         if (millis() - lastConnectionTime >= postingInterval) {
             pose_per_request++;
-            client.write("[");
-            client.write(String(time_idx++).c_str());
-            client.write("]");
-            client.write(" ");
 
-            for (int i = 0; i < 8; ++i) {
-                if (i == IMU_LEFT_FEMUR
-                    || i == IMU_RIGHT_FEMUR
-//                    || i == IMU_LEFT_TIBIA
-//                    || i == IMU_RIGHT_TIBIA
-                    ) {
+            Serial.print("[");
+            Serial.print(time_idx++);
+            Serial.print("]");
+            Serial.print(" ");
 
-                    sensor.get_single_data(&eulerAngle, i);
-                    client.write(String(eulerAngle.yaw, 2).c_str());
-                    client.write(" ");
-                    client.write(String(eulerAngle.roll, 2).c_str());
-                    client.write(" ");
-                    client.write(String(eulerAngle.pitch, 2).c_str());
-                    client.write(" ");
+//            client.write("[");
+//            int a=1;
+//            client.write(a);
+//            client.write("]");
+//            client.write(" ");
 
-                    }
-            }
+//            const std::string name[5]={"L_F","R_F","L_T", "R_T", "OnBrd"};
+            //todo: should be IMU_LEFT_FEMUR
+            sensor.get_single_data(&eulerAngle, IMU_LEFT_FEMUR);
+            sendEulerAngle(&eulerAngle);
 
+//            Serial.print("L_F roll:");
+//            Serial.print(String(eulerAngle.roll, 2).c_str());
+//            Serial.print(", pitch:");
+//            Serial.print(String(eulerAngle.pitch, 2).c_str());
+//            Serial.print(", yaw:");
+//            Serial.print(String(eulerAngle.yaw, 2).c_str());
+
+
+            //todo: should be IMU_RIGHT_FEMUR
+            sensor.get_single_data(&eulerAngle, IMU_RIGHT_FEMUR);
+            sendEulerAngle(&eulerAngle);
+
+            Serial.print("; R_F roll:");
+            Serial.print(String(eulerAngle.roll, 2).c_str());
+            Serial.print(", pitch:");
+            Serial.print(String(eulerAngle.pitch, 2).c_str());
+
+            //todo: should be IMU_LEFT_TIBIA
+            sensor.get_single_data(&eulerAngle, IMU_LEFT_TIBIA);
+            sendEulerAngle(&eulerAngle);
+
+//            Serial.print("; L_T roll:");
+//            Serial.print(String(eulerAngle.roll, 2).c_str());
+//            Serial.print(", pitch:");
+//            Serial.print(String(eulerAngle.pitch, 2).c_str());
+
+            //todo: should be IMU_RIGHT_TIBIA
+            sensor.get_single_data(&eulerAngle, IMU_RIGHT_TIBIA);
+            sendEulerAngle(&eulerAngle);
+
+//            Serial.print("; R_T roll:");
+//            Serial.print(String(eulerAngle.roll, 2).c_str());
+//            Serial.print(", pitch:");
+//            Serial.print(String(eulerAngle.pitch, 2).c_str());
+
+            //todo: should be onboard
+            sensor.get_onboard_data(&eulerAngle);
+            sendEulerAngle(&eulerAngle);
+
+//            Serial.print("; On_Brd roll:");
+//            Serial.print(String(eulerAngle.roll, 2).c_str());
+//            Serial.print(", pitch:");
+//            Serial.print(String(eulerAngle.pitch, 2).c_str());
+
+            Serial.print(" time consumed: ");
+            Serial.println(millis()-lastConnectionTime);
             lastConnectionTime = millis();
 
         }
@@ -144,10 +187,11 @@ void loop() {
 
     while (!client.connected()) {
 
-        if (millis() - lastConnectionTime > TIMEOUT) {
-            Serial.println("re-connected failed---TIMEOUT---into the dead loop, QWQ");
-            while (true);
-        }
+//        if (millis() - lastConnectionTime > TIMEOUT) {
+//            Serial.println("re-connected failed---TIMEOUT---into the dead loop, QWQ");
+//            while (true);
+
+//        }
         if (client.connect(server, PORT)) {
             //make the request
             client.write(Authentication_header);
@@ -157,7 +201,7 @@ void loop() {
             lastConnectionTime = millis();
             break;
         }
-        delay(60);
+        delay(600);
 
     }
 
